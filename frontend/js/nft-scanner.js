@@ -4,19 +4,23 @@ const NFTScanner = {
 
   async scan(walletAddress) {
     try {
-      console.log("Calling backend scan...");
+      const response = await fetch(
+        "https://worldbinder-api.onrender.com/api/scan",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ wallet: walletAddress })
+        }
+      );
 
-      const response = await fetch("http://localhost:4321/api/scan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ wallet: walletAddress })
-      });
+      if (!response.ok) {
+        console.error("Scan request failed:", response.status);
+        return [];
+      }
 
       const data = await response.json();
-
-      console.log("Scan response:", data);
 
       if (!data.nfts || data.nfts.length === 0) {
         return [];
@@ -55,12 +59,36 @@ const NFTScanner = {
       if (key === "magic" && !isNaN(val)) traits.magic = val;
     });
 
+    let rarity = "common";
+    const rarityAttr = attributes.find(a =>
+      (a.trait_type || "").toLowerCase() === "rarity"
+    );
+    if (rarityAttr) {
+      rarity = rarityAttr.value.toLowerCase();
+    }
+
+    let level = 1;
+    const levelAttr = attributes.find(a =>
+      (a.trait_type || "").toLowerCase() === "level"
+    );
+    if (levelAttr) {
+      level = parseInt(levelAttr.value, 10) || 1;
+    }
+
     return {
       id: item.id,
       name: metadata.name || "Unknown NFT",
       image,
+      rarity,
+      level,
       traits
     };
-  }
+  },
 
+  getAttackBonus(nftCount) {
+    if (nftCount >= 3) return 20;
+    if (nftCount >= 2) return 15;
+    if (nftCount >= 1) return 10;
+    return 0;
+  }
 };
